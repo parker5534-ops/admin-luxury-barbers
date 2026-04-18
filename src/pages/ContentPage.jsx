@@ -120,6 +120,42 @@ export default function ContentPage({ showToast }) {
           />
         </div>
 
+      <div className="a-field">
+        <label className="a-label">Services Section Title</label>
+        <input
+          className="a-input"
+          value={form.services_section_title || ''}
+          onChange={(e) =>
+            setForm({ ...form, services_section_title: e.target.value })
+          }
+          placeholder="Premium Grooming Menu"
+        />
+      </div>
+
+      <div className="a-field">
+        <label className="a-label">Hero Eyebrow / Tagline</label>
+        <input
+          className="a-input"
+          value={form.hero_kicker_text || ''}
+          onChange={(e) =>
+            setForm({ ...form, hero_kicker_text: e.target.value })
+          }
+          placeholder="Premium Barbershop"
+        />
+      </div>
+
+      <div className="a-field">
+        <label className="a-label">Hero Location Text</label>
+        <input
+          className="a-input"
+          value={form.hero_location_text || ''}
+          onChange={(e) =>
+            setForm({ ...form, hero_location_text: e.target.value })
+          }
+          placeholder="Friendswood, TX"
+        />
+      </div>
+
         {/* Hero background image */}
         <div className="a-field">
           <label className="a-label">Background Image (optional)</label>
