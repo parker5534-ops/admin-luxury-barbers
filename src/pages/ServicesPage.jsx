@@ -57,6 +57,37 @@ export default function ServicesPage({ showToast }) {
     } catch { showToast('Update failed', 'error'); }
   };
 
+  const sortedServices = [...services].sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+  );
+
+  const moveService = async (index, direction) => {
+    const list = [...sortedServices];
+    const targetIndex = index + direction;
+
+    if (targetIndex < 0 || targetIndex >= list.length) return;
+
+    const current = list[index];
+    const target = list[targetIndex];
+
+    try {
+      await updateService(current.id, {
+        ...current,
+        sort_order: target.sort_order ?? 0,
+      });
+
+      await updateService(target.id, {
+        ...target,
+        sort_order: current.sort_order ?? 0,
+      });
+
+      load();
+      showToast('Service order updated!');
+    } catch {
+      showToast('Failed to reorder', 'error');
+    }
+  };
+
   return (
     <div>
       <div className="section-hd">
@@ -74,7 +105,7 @@ export default function ServicesPage({ showToast }) {
               <tr><th>Service</th><th>Price</th><th>Duration</th><th>Category</th><th>Active</th><th>Actions</th></tr>
             </thead>
             <tbody>
-              {services.map(s => (
+              {sortedServices.map((s, i) => (
                 <tr key={s.id}>
                   <td>
                     <div style={{ fontWeight: 600 }}>{s.name}</div>
@@ -91,11 +122,32 @@ export default function ServicesPage({ showToast }) {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn-icon" onClick={() => openEdit(s)} title="Edit">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      <button
+                        className="btn-icon"
+                        onClick={() => moveService(i, -1)}
+                        title="Move Up"
+                        disabled={i === 0}
+                        style={i === 0 ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                      >
+                        ↑
                       </button>
+
+                      <button
+                        className="btn-icon"
+                        onClick={() => moveService(i, 1)}
+                        title="Move Down"
+                        disabled={i === sortedServices.length - 1}
+                        style={i === sortedServices.length - 1 ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                      >
+                        ↓
+                      </button>
+
+                      <button className="btn-icon" onClick={() => openEdit(s)} title="Edit">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                      </button>
+
                       <button className="btn-icon danger" onClick={() => remove(s.id)} title="Delete">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4h6v2" /></svg>
                       </button>
                     </div>
                   </td>
