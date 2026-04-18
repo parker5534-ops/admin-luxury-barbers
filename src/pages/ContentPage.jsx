@@ -6,6 +6,9 @@ export default function ContentPage({ showToast }) {
     hero_headline: '',
     hero_subheadline: '',
     hero_bg_image: '',
+    hero_kicker_text: '',
+    hero_location_text: '',
+    services_section_title: '',
     promo_text: '',
     about_text: '',
     cancellation_policy: '',
@@ -20,14 +23,17 @@ export default function ContentPage({ showToast }) {
     getSettings().then(s => {
       setFields(f => ({
         ...f,
-        hero_headline:       s.hero_headline       || '',
-        hero_subheadline:    s.hero_subheadline    || '',
-        hero_bg_image:       s.hero_bg_image       || '',
-        promo_text:          s.promo_text          || '',
-        about_text:          s.about_text          || '',
-        cancellation_policy: s.cancellation_policy || '',
-        seo_title:           s.seo_title           || '',
-        seo_description:     s.seo_description     || '',
+        hero_headline:         s.hero_headline         || '',
+        hero_subheadline:      s.hero_subheadline      || '',
+        hero_bg_image:         s.hero_bg_image         || '',
+        hero_kicker_text:      s.hero_kicker_text      || '',
+        hero_location_text:    s.hero_location_text    || '',
+        services_section_title:s.services_section_title || '',
+        promo_text:            s.promo_text            || '',
+        about_text:            s.about_text            || '',
+        cancellation_policy:   s.cancellation_policy   || '',
+        seo_title:             s.seo_title             || '',
+        seo_description:       s.seo_description       || '',
       }));
     }).catch(() => showToast('Failed to load settings', 'error'));
   }, []);
@@ -120,14 +126,13 @@ export default function ContentPage({ showToast }) {
           />
         </div>
 
+      
       <div className="a-field">
         <label className="a-label">Services Section Title</label>
         <input
           className="a-input"
-          value={form.services_section_title || ''}
-          onChange={(e) =>
-            setForm({ ...form, services_section_title: e.target.value })
-          }
+          value={fields.services_section_title || ''}
+          onChange={(e) => set('services_section_title', e.target.value)}
           placeholder="Premium Grooming Menu"
         />
       </div>
@@ -136,10 +141,8 @@ export default function ContentPage({ showToast }) {
         <label className="a-label">Hero Eyebrow / Tagline</label>
         <input
           className="a-input"
-          value={form.hero_kicker_text || ''}
-          onChange={(e) =>
-            setForm({ ...form, hero_kicker_text: e.target.value })
-          }
+          value={fields.hero_kicker_text || ''}
+          onChange={(e) => set('hero_kicker_text', e.target.value)}
           placeholder="Premium Barbershop"
         />
       </div>
@@ -148,10 +151,8 @@ export default function ContentPage({ showToast }) {
         <label className="a-label">Hero Location Text</label>
         <input
           className="a-input"
-          value={form.hero_location_text || ''}
-          onChange={(e) =>
-            setForm({ ...form, hero_location_text: e.target.value })
-          }
+          value={fields.hero_location_text || ''}
+          onChange={(e) => set('hero_location_text', e.target.value)}
           placeholder="Friendswood, TX"
         />
       </div>
