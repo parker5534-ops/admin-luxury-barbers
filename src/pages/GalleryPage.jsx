@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { getGallery, uploadGalleryImage, createGalleryImage, deleteGalleryImage, updateGalleryImage } from '../lib/api';
+import { getGallery, uploadGalleryImage, createGalleryImage, deleteGalleryImage, updateGalleryImage, reorderGallery } from '../lib/api';
 
 export default function GalleryPage({ showToast }) {
   const [images, setImages] = useState([]);
@@ -92,20 +92,12 @@ export default function GalleryPage({ showToast }) {
     setDragOverId(null);
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/gallery/reorder`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          items: reordered.map(img => ({
-            id: img.id,
-            sort_order: img.sort_order,
-          })),
-        }),
-      });
-
-      if (!res.ok) throw new Error('Failed to save gallery order');
+      await reorderGallery(
+        reordered.map(img => ({
+          id: img.id,
+          sort_order: img.sort_order,
+        }))
+      );
 
       showToast('Gallery order updated');
       await load();

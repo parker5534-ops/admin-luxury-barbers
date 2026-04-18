@@ -52,6 +52,11 @@ export const uploadGalleryImage = (file) => upload('/api/uploads/gallery', file)
 export const createGalleryImage = (data) => req('/api/gallery', { method: 'POST', body: JSON.stringify(data) });
 export const updateGalleryImage = (id, data) => req(`/api/gallery/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const deleteGalleryImage = (id) => req(`/api/gallery/${id}`, { method: 'DELETE' });
+export const reorderGallery = (items) =>
+  req('/api/gallery/reorder', {
+    method: 'PUT',
+    body: JSON.stringify({ items }),
+  });
 
 // Barbers
 export const getBarbers = () => req('/api/barbers/all');
