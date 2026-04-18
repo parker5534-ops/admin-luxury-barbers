@@ -6,27 +6,40 @@ export default function GalleryPage({ showToast }) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [drag, setDrag] = useState(false);
+  const [draggedId, setDraggedId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
   const fileRef = useRef();
 
   const load = () => {
     setLoading(true);
-    getGallery().then(setImages).catch(() => showToast('Failed to load', 'error')).finally(() => setLoading(false));
+    getGallery()
+      .then(setImages)
+      .catch(() => showToast('Failed to load', 'error'))
+      .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+
+  useEffect(() => {
+    load();
+  }, []);
 
   const handleFiles = async (files) => {
     const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
     if (!arr.length) return showToast('Please select image files', 'error');
     setUploading(true);
     let uploaded = 0;
+
     for (const file of arr) {
       try {
         const { url, thumbnail_url, public_id } = await uploadGalleryImage(file);
-        const img = await createGalleryImage({ url, thumbnail_url, public_id });
-        setImages(imgs => [img, ...imgs]);
+        await createGalleryImage({ url, thumbnail_url, public_id });
         uploaded++;
-      } catch { showToast(`Failed to upload ${file.name}`, 'error'); }
+      } catch {
+        showToast(`Failed to upload ${file.name}`, 'error');
+      }
     }
+
+    await load();
+
     if (uploaded) showToast(`${uploaded} image${uploaded > 1 ? 's' : ''} uploaded!`);
     setUploading(false);
   };
@@ -38,6 +51,74 @@ export default function GalleryPage({ showToast }) {
       setImages(imgs => imgs.filter(i => i.id !== id));
       showToast('Deleted');
     } catch { showToast('Delete failed', 'error'); }
+  };
+
+  const handleDragStart = (id) => {
+    setDraggedId(id);
+  };
+
+  const handleDragOver = (e, id) => {
+    e.preventDefault();
+    if (dragOverId !== id) setDragOverId(id);
+  };
+
+  const handleDrop = async (targetId) => {
+    if (!draggedId || draggedId === targetId) {
+      setDraggedId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    const updated = [...images];
+    const fromIndex = updated.findIndex(img => img.id === draggedId);
+    const toIndex = updated.findIndex(img => img.id === targetId);
+
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    const [movedItem] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, movedItem);
+
+    const reordered = updated.map((img, index) => ({
+      ...img,
+      sort_order: index + 1,
+    }));
+
+    setImages(reordered);
+    setDraggedId(null);
+    setDragOverId(null);
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/gallery/reorder`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: reordered.map(img => ({
+            id: img.id,
+            sort_order: img.sort_order,
+          })),
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to save gallery order');
+
+      showToast('Gallery order updated');
+      await load();
+    } catch (err) {
+      console.error('Drag reorder failed:', err);
+      showToast('Failed to save gallery order', 'error');
+      await load();
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setDragOverId(null);
   };
 
   const toggleActive = async (img) => {
@@ -91,15 +172,40 @@ export default function GalleryPage({ showToast }) {
           <div className="a-card-title">Uploaded Images ({images.length})</div>
           <div className="gallery-admin-grid">
             {images.map(img => (
-              <div key={img.id} className="gallery-admin-item" style={{ opacity: img.is_active ? 1 : 0.4 }}>
+              <div
+                key={img.id}
+                className="gallery-admin-item"
+                draggable
+                onDragStart={() => handleDragStart(img.id)}
+                onDragOver={(e) => handleDragOver(e, img.id)}
+                onDrop={() => handleDrop(img.id)}
+                onDragEnd={handleDragEnd}
+                style={{
+                  opacity: img.is_active ? 1 : 0.4,
+                  border: dragOverId === img.id ? '2px solid var(--accent, #8b5cf6)' : '2px solid transparent',
+                  cursor: 'grab',
+                }}
+              >
                 <img src={img.thumbnail_url || img.url} alt={img.caption || 'Gallery'} loading="lazy" />
                 <div className="gallery-admin-item-overlay">
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button className="btn-icon" onClick={() => toggleActive(img)} title={img.is_active ? 'Hide' : 'Show'} style={{ color: img.is_active ? 'var(--green)' : 'var(--text-muted)' }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+
+                    <button
+                      className="btn-icon"
+                      onClick={() => toggleActive(img)}
+                      title={img.is_active ? 'Hide' : 'Show'}
+                      style={{ color: img.is_active ? 'var(--green)' : 'var(--text-muted)' }}
+                    >
                       {img.is_active ? '👁' : '🙈'}
                     </button>
+
                     <button className="btn-icon danger" onClick={() => remove(img.id)} title="Delete">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14H6L5 6" />
+                        <path d="M10 11v6M14 11v6" />
+                        <path d="M9 6V4h6v2" />
+                      </svg>
                     </button>
                   </div>
                 </div>
@@ -107,7 +213,7 @@ export default function GalleryPage({ showToast }) {
             ))}
           </div>
           <div className="info-box" style={{ marginTop: 14 }}>
-            Dimmed images are hidden from the public site. Click the eye icon to toggle visibility.
+            Drag and drop images to reorder them. Dimmed images are hidden from the public site. Click the eye icon to toggle visibility.
           </div>
         </div>
       )}

@@ -9,6 +9,8 @@ export default function ServicesPage({ showToast }) {
   const [editing, setEditing] = useState(null); // null | 'new' | service object
   const [form, setForm] = useState(BLANK);
   const [saving, setSaving] = useState(false);
+  const [draggedId, setDraggedId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -61,31 +63,61 @@ export default function ServicesPage({ showToast }) {
     (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
   );
 
-  const moveService = async (index, direction) => {
-    const list = [...sortedServices];
-    const targetIndex = index + direction;
+  const handleDragStart = (id) => {
+    setDraggedId(id);
+  };
 
-    if (targetIndex < 0 || targetIndex >= list.length) return;
+  const handleDragOver = (e, id) => {
+    e.preventDefault();
+    if (dragOverId !== id) setDragOverId(id);
+  };
 
-    const current = list[index];
-    const target = list[targetIndex];
+  const handleDrop = async (targetId) => {
+    if (!draggedId || draggedId === targetId) {
+      setDraggedId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    const updated = [...sortedServices];
+    const fromIndex = updated.findIndex(item => item.id === draggedId);
+    const toIndex = updated.findIndex(item => item.id === targetId);
+
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    const [movedItem] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, movedItem);
+
+    const reordered = updated.map((item, index) => ({
+      ...item,
+      sort_order: index + 1,
+    }));
+
+    setServices(reordered);
+    setDraggedId(null);
+    setDragOverId(null);
 
     try {
-      await updateService(current.id, {
-        ...current,
-        sort_order: target.sort_order ?? 0,
-      });
+      for (const item of reordered) {
+        await updateService(item.id, item);
+      }
 
-      await updateService(target.id, {
-        ...target,
-        sort_order: current.sort_order ?? 0,
-      });
-
-      load();
       showToast('Service order updated!');
-    } catch {
+      await load();
+    } catch (err) {
+      console.error('Drag reorder failed:', err);
       showToast('Failed to reorder', 'error');
+      await load();
     }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setDragOverId(null);
   };
 
   return (
@@ -105,55 +137,84 @@ export default function ServicesPage({ showToast }) {
               <tr><th>Service</th><th>Price</th><th>Duration</th><th>Category</th><th>Active</th><th>Actions</th></tr>
             </thead>
             <tbody>
-              {sortedServices.map((s, i) => (
-                <tr key={s.id}>
+              {sortedServices.map((s) => (
+                <tr
+                  key={s.id}
+                  draggable
+                  onDragStart={() => handleDragStart(s.id)}
+                  onDragOver={(e) => handleDragOver(e, s.id)}
+                  onDrop={() => handleDrop(s.id)}
+                  onDragEnd={handleDragEnd}
+                  style={{
+                    border: dragOverId === s.id ? '2px solid var(--accent, #8b5cf6)' : undefined,
+                    cursor: 'grab',
+                  }}
+                >
                   <td>
                     <div style={{ fontWeight: 600 }}>{s.name}</div>
-                    {s.description && <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.description}</div>}
+                    {s.description && (
+                      <div
+                        style={{
+                          fontSize: '0.78rem',
+                          color: 'var(--text-muted)',
+                          marginTop: 2,
+                          maxWidth: 260,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {s.description}
+                      </div>
+                    )}
                   </td>
+
                   <td style={{ fontWeight: 700, color: 'var(--teal)' }}>{s.price}</td>
                   <td style={{ color: 'var(--text-dim)' }}>{s.duration || '—'}</td>
-                  <td><span className="badge badge-muted">{s.category}</span></td>
+                  <td>
+                    <span className="badge badge-muted">{s.category}</span>
+                  </td>
+
                   <td>
                     <label className="toggle" title={s.is_active ? 'Active' : 'Hidden'}>
-                      <input type="checkbox" checked={!!s.is_active} onChange={() => toggleActive(s)} />
+                      <input
+                        type="checkbox"
+                        checked={!!s.is_active}
+                        onChange={() => toggleActive(s)}
+                      />
                       <span className="toggle-slider" />
                     </label>
                   </td>
+
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button
-                        className="btn-icon"
-                        onClick={() => moveService(i, -1)}
-                        title="Move Up"
-                        disabled={i === 0}
-                        style={i === 0 ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
-                      >
-                        ↑
-                      </button>
-
-                      <button
-                        className="btn-icon"
-                        onClick={() => moveService(i, 1)}
-                        title="Move Down"
-                        disabled={i === sortedServices.length - 1}
-                        style={i === sortedServices.length - 1 ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
-                      >
-                        ↓
-                      </button>
-
                       <button className="btn-icon" onClick={() => openEdit(s)} title="Edit">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
                       </button>
 
                       <button className="btn-icon danger" onClick={() => remove(s.id)} title="Delete">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4h6v2" /></svg>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6l-1 14H6L5 6" />
+                          <path d="M10 11v6M14 11v6" />
+                          <path d="M9 6V4h6v2" />
+                        </svg>
                       </button>
                     </div>
                   </td>
                 </tr>
               ))}
-              {services.length === 0 && <tr><td colSpan={6} className="empty-state">No services yet — add your first one.</td></tr>}
+
+              {services.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="empty-state">
+                    No services yet — add your first one.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

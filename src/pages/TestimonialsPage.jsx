@@ -7,7 +7,7 @@ const BLANK = { name: '', rating: 5, text: '', source: 'google', is_active: true
 function StarsInput({ value, onChange }) {
   return (
     <div className="stars-input">
-      {[1,2,3,4,5].map(n => (
+      {[1, 2, 3, 4, 5].map(n => (
         <button key={n} type="button" className={n <= value ? 'active' : ''} onClick={() => onChange(n)}>★</button>
       ))}
     </div>
@@ -20,6 +20,8 @@ export default function TestimonialsPage({ showToast }) {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(BLANK);
   const [saving, setSaving] = useState(false);
+  const [draggedId, setDraggedId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -62,6 +64,65 @@ export default function TestimonialsPage({ showToast }) {
     } catch { showToast('Update failed', 'error'); }
   };
 
+  const handleDragStart = (id) => {
+    setDraggedId(id);
+  };
+
+  const handleDragOver = (e, id) => {
+    e.preventDefault();
+    if (dragOverId !== id) setDragOverId(id);
+  };
+
+  const handleDrop = async (targetId) => {
+    if (!draggedId || draggedId === targetId) {
+      setDraggedId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    const updated = [...items];
+    const fromIndex = updated.findIndex(item => item.id === draggedId);
+    const toIndex = updated.findIndex(item => item.id === targetId);
+
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    const [movedItem] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, movedItem);
+
+    const reordered = updated.map((item, index) => ({
+      ...item,
+      sort_order: index + 1,
+    }));
+
+    setItems(reordered);
+    setDraggedId(null);
+    setDragOverId(null);
+
+    try {
+      for (const item of reordered) {
+        await updateTestimonial(item.id, {
+          sort_order: item.sort_order,
+        });
+      }
+
+      showToast('Order updated!');
+      await load();
+    } catch (err) {
+      console.error('Drag reorder failed:', err);
+      showToast('Failed to reorder', 'error');
+      await load();
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setDragOverId(null);
+  };
+
   return (
     <div>
       <div className="section-hd">
@@ -70,58 +131,113 @@ export default function TestimonialsPage({ showToast }) {
       </div>
 
       {loading ? <div className="loading-overlay"><div className="spinner" /></div> : (
-        <div className="a-card" style={{ padding: 0 }}>
-          <table className="a-table">
-            <thead><tr><th>Name</th><th>Rating</th><th>Review</th><th>Source</th><th>Active</th><th>Actions</th></tr></thead>
-            <tbody>
-              {items.map(t => (
-                <tr key={t.id} style={{ opacity: t.is_active ? 1 : 0.5 }}>
-                  <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{t.name}</td>
-                  <td style={{ color: 'var(--gold)', whiteSpace: 'nowrap' }}>{'★'.repeat(t.rating)}</td>
-                  <td style={{ color: 'var(--text-dim)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{t.text}"</td>
-                  <td><span className="badge badge-muted">{t.source}</span></td>
-                  <td><label className="toggle"><input type="checkbox" checked={!!t.is_active} onChange={() => toggleActive(t)} /><span className="toggle-slider" /></label></td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn-icon" onClick={() => openEdit(t)}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                      </button>
-                      <button className="btn-icon danger" onClick={() => remove(t.id)}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                      </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {items.map((t) => (
+              <div
+                key={t.id}
+                className="a-card"
+                draggable
+                onDragStart={() => handleDragStart(t.id)}
+                onDragOver={(e) => handleDragOver(e, t.id)}
+                onDrop={() => handleDrop(t.id)}
+                onDragEnd={handleDragEnd}
+                style={{
+                  opacity: t.is_active ? 1 : 0.5,
+                  border: dragOverId === t.id ? '2px solid var(--accent, #8b5cf6)' : '2px solid transparent',
+                  cursor: 'grab',
+                  transform: draggedId === t.id ? 'scale(0.98)' : 'scale(1)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+
+                  {/* LEFT SIDE */}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700 }}>{t.name}</div>
+
+                    <div style={{ color: 'var(--gold)', margin: '4px 0' }}>
+                      {'★'.repeat(t.rating)}
                     </div>
-                  </td>
-                </tr>
-              ))}
-              {items.length === 0 && <tr><td colSpan={6} className="empty-state">No testimonials yet.</td></tr>}
-            </tbody>
-          </table>
-        </div>
+
+                    <div style={{ color: 'var(--text-dim)', fontSize: '0.9rem' }}>
+                      "{t.text}"
+                    </div>
+
+                    <div style={{ marginTop: 6 }}>
+                      <span className="badge badge-muted">{t.source}</span>
+                    </div>
+                  </div>
+
+                  {/* RIGHT SIDE */}
+                  <div
+                    style={{ display: 'flex', gap: 6, alignItems: 'center' }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <label className="toggle">
+                      <input
+                        type="checkbox"
+                        checked={!!t.is_active}
+                        onChange={() => toggleActive(t)}
+                      />
+                      <span className="toggle-slider" />
+                    </label>
+
+                    <button className="btn-icon" onClick={() => openEdit(t)}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </button>
+
+                    <button className="btn-icon danger" onClick={() => remove(t.id)}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14H6L5 6" />
+                        <path d="M10 11v6M14 11v6" />
+                        <path d="M9 6V4h6v2" />
+                      </svg>
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+            ))}
+
+            {items.length > 0 && (
+              <div className="info-box">
+                Drag and drop testimonials to reorder them.
+              </div>
+            )}
+
+            {items.length === 0 && (
+              <div className="empty-state">No testimonials yet.</div>
+            )}
+          </div>
       )}
 
-      {editing !== null && (
-        <Modal title={editing === 'new' ? 'Add Testimonial' : 'Edit Testimonial'} onClose={close}>
-          <div className="a-field"><label className="a-label">Client Name *</label><input className="a-input" value={form.name} onChange={e => set('name', e.target.value)} placeholder="Michael R." autoFocus /></div>
-          <div className="a-field">
-            <label className="a-label">Rating</label>
-            <StarsInput value={form.rating} onChange={v => set('rating', v)} />
-          </div>
-          <div className="a-field"><label className="a-label">Review Text *</label><textarea className="a-input" rows={4} value={form.text} onChange={e => set('text', e.target.value)} placeholder="What did they say?" /></div>
-          <div className="a-field">
-            <label className="a-label">Source</label>
-            <select className="a-input" value={form.source} onChange={e => set('source', e.target.value)}>
-              <option value="google">Google</option>
-              <option value="facebook">Facebook</option>
-              <option value="yelp">Yelp</option>
-              <option value="direct">Direct</option>
-            </select>
-          </div>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
-            <button className="btn-secondary" onClick={close}>Cancel</button>
-            <button className="btn-save" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
+          {editing !== null && (
+            <Modal title={editing === 'new' ? 'Add Testimonial' : 'Edit Testimonial'} onClose={close}>
+              <div className="a-field"><label className="a-label">Client Name *</label><input className="a-input" value={form.name} onChange={e => set('name', e.target.value)} placeholder="Michael R." autoFocus /></div>
+              <div className="a-field">
+                <label className="a-label">Rating</label>
+                <StarsInput value={form.rating} onChange={v => set('rating', v)} />
+              </div>
+              <div className="a-field"><label className="a-label">Review Text *</label><textarea className="a-input" rows={4} value={form.text} onChange={e => set('text', e.target.value)} placeholder="What did they say?" /></div>
+              <div className="a-field">
+                <label className="a-label">Source</label>
+                <select className="a-input" value={form.source} onChange={e => set('source', e.target.value)}>
+                  <option value="google">Google</option>
+                  <option value="facebook">Facebook</option>
+                  <option value="yelp">Yelp</option>
+                  <option value="direct">Direct</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+                <button className="btn-secondary" onClick={close}>Cancel</button>
+                <button className="btn-save" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+              </div>
+            </Modal>
+          )}
+        </div>
+      );
 }
