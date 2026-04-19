@@ -208,6 +208,21 @@ select.a-input { cursor: pointer; }
 .btn-icon:hover { color: #fff; border-color: var(--border-m); }
 .btn-icon.danger:hover { color: var(--red); border-color: rgba(224,85,85,0.3); }
 
+/*
+  FIX: Mobile hamburger button.
+  Previously this button had style={{ display: 'none' }} hard-coded inline in the JSX
+  (in admin App.jsx), which permanently hid it on ALL screen sizes. That inline style
+  has been removed. Now the button is hidden on desktop via CSS, and shown on mobile.
+*/
+.mobile-menu-btn {
+  display: none; /* hidden on desktop — sidebar is always visible there */
+}
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: flex; /* visible on mobile so the sidebar can be opened */
+  }
+}
+
 /* Stat cards */
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
 .stat-card {
@@ -334,10 +349,16 @@ select.a-input { cursor: pointer; }
 /* Empty state */
 .empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); font-size: 0.9rem; }
 
-/* Mobile sidebar overlay */
+/* Mobile sidebar */
 .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 49; }
 @media (max-width: 768px) {
-  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 50; transform: translateX(-100%); transition: transform var(--transition); }
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform var(--transition);
+  }
   .sidebar.mobile-open { transform: translateX(0); }
   .sidebar-overlay.visible { display: block; }
 }
@@ -346,7 +367,6 @@ select.a-input {
   color: #fff;
   background: rgba(255,255,255,0.04);
 }
-
 select.a-input option {
   color: #000;
   background: #fff;

@@ -35,10 +35,18 @@ const PAGE_MAP = {
 };
 
 const PAGE_TITLES = {
-  overview: 'Dashboard', analytics: 'Analytics', content: 'Website Content',
-  services: 'Services', gallery: 'Gallery', team: 'Team',
-  testimonials: 'Testimonials', faqs: 'FAQs', contact: 'Contact & Hours',
-  booking: 'Booking Settings', leads: 'Leads', settings: 'Settings',
+  overview: 'Dashboard',
+  analytics: 'Analytics',
+  content: 'Website Content',
+  services: 'Services',
+  gallery: 'Gallery',
+  team: 'Team',
+  testimonials: 'Testimonials',
+  faqs: 'FAQs',
+  contact: 'Contact & Hours',
+  booking: 'Booking Settings',
+  leads: 'Leads',
+  settings: 'Settings',
 };
 
 function AdminShell() {
@@ -59,8 +67,11 @@ function AdminShell() {
 
   return (
     <div className="admin-layout">
-      {/* Mobile overlay */}
-      <div className={`sidebar-overlay${sidebarOpen ? ' visible' : ''}`} onClick={() => setSidebarOpen(false)} />
+      {/* Mobile overlay — clicking it closes the sidebar */}
+      <div
+        className={`sidebar-overlay${sidebarOpen ? ' visible' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
 
       <Sidebar
         page={page}
@@ -73,13 +84,31 @@ function AdminShell() {
       <div className="admin-main">
         <div className="admin-topbar">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button className="btn-icon" onClick={() => setSidebarOpen(o => !o)} style={{ display: 'none' }}
-              id="mobile-menu-btn">☰</button>
+            {/*
+              FIX: The original had style={{ display: 'none' }} hard-coded inline,
+              which permanently hid this button even on mobile. Removed that inline
+              style entirely. The admin.css now controls visibility via media query:
+              hidden by default on desktop, shown on mobile (≤768px).
+            */}
+            <button
+              className="btn-icon mobile-menu-btn"
+              onClick={() => setSidebarOpen(o => !o)}
+              aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={sidebarOpen}
+            >
+              ☰
+            </button>
             <div className="topbar-title">{PAGE_TITLES[page] || 'Admin'}</div>
           </div>
+
           <div className="topbar-actions">
-            <a href={import.meta.env.VITE_PUBLIC_URL || 'http://localhost:5173'} target="_blank" rel="noopener"
-              className="btn-secondary" style={{ fontSize: '0.8rem', padding: '7px 14px' }}>
+            <a
+              href={import.meta.env.VITE_PUBLIC_URL || 'http://localhost:5173'}
+              target="_blank"
+              rel="noopener"
+              className="btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '7px 14px' }}
+            >
               View Site ↗
             </a>
           </div>
