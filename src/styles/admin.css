@@ -36,7 +36,13 @@ img { max-width: 100%; display: block; }
 }
 
 /* Layout */
-.admin-layout { display: flex; height: 100vh; overflow: hidden; }
+.admin-layout {
+  display: flex;
+  height: 100vh;
+  /* Do NOT set overflow:hidden here — it traps position:fixed children on iOS Safari.
+     Overflow is controlled on .admin-content instead. */
+  overflow: visible;
+}
 
 /* Sidebar */
 .sidebar {
@@ -112,7 +118,7 @@ img { max-width: 100%; display: block; }
 .sidebar-user-role { font-size: 0.7rem; color: var(--text-muted); }
 
 /* Main content */
-.admin-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.admin-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 .admin-topbar {
   height: 60px;
   border-bottom: 1px solid var(--border);
@@ -209,17 +215,21 @@ select.a-input { cursor: pointer; }
 .btn-icon.danger:hover { color: var(--red); border-color: rgba(224,85,85,0.3); }
 
 /*
-  FIX: Mobile hamburger button.
-  Previously this button had style={{ display: 'none' }} hard-coded inline in the JSX
-  (in admin App.jsx), which permanently hid it on ALL screen sizes. That inline style
-  has been removed. Now the button is hidden on desktop via CSS, and shown on mobile.
+  MOBILE HAMBURGER BUTTON
+  Hidden on desktop (sidebar is always visible there).
+  Shown on mobile — !important defeats any specificity fight with .btn-icon.
+  Larger padding gives a proper 44px tap target on touch screens.
 */
 .mobile-menu-btn {
-  display: none; /* hidden on desktop — sidebar is always visible there */
+  display: none !important;
 }
 @media (max-width: 768px) {
   .mobile-menu-btn {
-    display: flex; /* visible on mobile so the sidebar can be opened */
+    display: flex !important;
+    width: 40px;
+    height: 40px;
+    font-size: 1.1rem;
+    padding: 0;
   }
 }
 
@@ -349,18 +359,45 @@ select.a-input { cursor: pointer; }
 /* Empty state */
 .empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); font-size: 0.9rem; }
 
-/* Mobile sidebar */
-.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 49; }
+/*
+  MOBILE SIDEBAR
+  The sidebar becomes a fixed drawer on mobile. z-index values are very high (9999/9998)
+  to ensure they sit above all page content regardless of any stacking contexts created
+  by admin-topbar, admin-content, or any third-party widget.
+*/
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 9998;
+  /* No backdrop-filter here — it would create a new stacking context that could trap the sidebar */
+}
+
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
-    left: 0; top: 0; bottom: 0;
-    z-index: 50;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    /* Explicitly set width so sidebar.collapsed does not make it 60px when sliding in */
+    width: var(--sidebar-w) !important;
+    z-index: 9999;
     transform: translateX(-100%);
-    transition: transform var(--transition);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    /* Prevent content from collapsing when off-screen */
+    overflow-y: auto;
+    overflow-x: hidden;
   }
-  .sidebar.mobile-open { transform: translateX(0); }
-  .sidebar-overlay.visible { display: block; }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 8px 0 40px rgba(0, 0, 0, 0.6);
+  }
+
+  .sidebar-overlay.visible {
+    display: block;
+  }
 }
 
 select.a-input {
